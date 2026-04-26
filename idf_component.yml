@@ -1,11 +1,11 @@
-name: khiyamiftikhar/esp-lcd-ili9486
-version: "1.0.2"
-description: "ESP-IDF driver for ILI9486 LCD controller"
-url: "https://github.com/khiyamiftikhar/esp-lcd-ili9486"
+name: kroften4/esp-lcd-ili9486-8bit-parallel
+version: "0.0.1"
+description: "ESP-IDF driver for ILI9486 LCD controller with 8bit parallel interface, forked from khiyamiftikhar/esp-lcd-ili9486"
+url: "https://github.com/kroften4/esp-lcd-ili9486-8bit-parallel"
 license: "MIT"
 
 dependencies:
-  idf: ">=5.5.2"
+  idf: ">=6.0.0"
 
 files:
    use_gitignore: true
