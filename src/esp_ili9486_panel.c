@@ -1,5 +1,8 @@
+// TODO: why use __containerof when i can store data in base->user_data
+
 // ─── ili9486_panel.c ────────────────────────────────────────────────────────
 // ─── esp_ili9486_panel.c (top includes) ──────────────────────────────────────
+#include "esp_err.h"
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -17,16 +20,17 @@
 static const char *TAG = "ili9486";
 
 // ── ILI9486 command constants ────────────────────────────────────────────────
-#define ILI9486_CMD_SWRESET 0x01
-#define ILI9486_CMD_SLPOUT 0x11
-#define ILI9486_CMD_COLMOD 0x3A
-#define ILI9486_CMD_MADCTL 0x36
-#define ILI9486_CMD_DISPON 0x29
-#define ILI9486_CMD_CASET 0x2A
-#define ILI9486_CMD_RASET 0x2B
-#define ILI9486_CMD_RAMWR 0x2C
-#define ILI9486_CMD_INVON 0x21
-#define ILI9486_CMD_INVOFF 0x20
+#define ILI9486_CMD_SWRESET 0x01 ///> Software reset
+#define ILI9486_CMD_SLPOUT 0x11 ///> Turn off sleep mode
+#define ILI9486_CMD_COLMOD 0x3A ///> Set pixel format
+#define ILI9486_CMD_MADCTL \
+	0x36 ///> Define read/write scanning direction of frame memory
+#define ILI9486_CMD_DISON 0x29 ///> Display on
+#define ILI9486_CMD_CASET 0x2A ///> Column address set
+#define ILI9486_CMD_PASET 0x2B ///> Page address set
+#define ILI9486_CMD_RAMWR 0x2C ///> Memory write
+#define ILI9486_CMD_INVON 0x21 ///> Display inversion on
+#define ILI9486_CMD_INVOFF 0x20 ///> Display inversion off
 
 // ── Internal panel object ────────────────────────────────────────────────────
 typedef struct {
@@ -39,20 +43,22 @@ typedef struct {
 	bool invert_color;
 } ili9486_panel_t;
 
+// TODO: make it more configurable
 #define LCD_H_RES 320
 #define CONV_BUF_PIXELS (LCD_H_RES * 80)
 static uint8_t s_conv_buf[CONV_BUF_PIXELS * 3];
 
-static void rgb565_to_rgb666(const uint16_t *src, uint8_t *dst, size_t pixels)
-{
-	for (size_t i = 0; i < pixels; i++) {
-		uint16_t p = src[i];
-
-		dst[3 * i + 0] = ((p >> 11) & 0x1F) << 3;
-		dst[3 * i + 1] = ((p >> 5) & 0x3F) << 2;
-		dst[3 * i + 2] = (p & 0x1F) << 3;
-	}
-}
+// 8bit parallel uses rgb565
+// static void rgb565_to_rgb666(const uint16_t *src, uint8_t *dst, size_t pixels)
+// {
+// 	for (size_t i = 0; i < pixels; i++) {
+// 		uint16_t p = src[i];
+//
+// 		dst[3 * i + 0] = ((p >> 11) & 0x1F) << 3;
+// 		dst[3 * i + 1] = ((p >> 5) & 0x3F) << 2;
+// 		dst[3 * i + 2] = (p & 0x1F) << 3;
+// 	}
+// }
 
 // ── Forward declarations ─────────────────────────────────────────────────────
 static esp_err_t panel_ili9486_del(esp_lcd_panel_t *panel);
@@ -70,50 +76,80 @@ static esp_err_t panel_ili9486_set_gap(esp_lcd_panel_t *panel, int x_gap,
 static esp_err_t panel_ili9486_disp_on_off(esp_lcd_panel_t *panel, bool on);
 
 // ── Helper: send a command with 0-N data bytes ───────────────────────────────
-static esp_err_t ili9486_send(esp_lcd_panel_io_handle_t io, int cmd,
+static esp_err_t ili9486_send(esp_lcd_panel_io_handle_t io, uint8_t cmd,
 							  const uint8_t *data, size_t len)
 {
-	return esp_lcd_panel_io_tx_param(io, cmd, data, len);
+	esp_err_t ret = esp_lcd_panel_io_tx_param(io, cmd, data, len);
+	ESP_ERROR_CHECK(ret);
+	return ret;
 }
 
 // ── Init sequence ────────────────────────────────────────────────────────────
 static void ili9486_send_init_sequence(esp_lcd_panel_io_handle_t io)
 {
-	/* Software reset – give it 120 ms */
+	ESP_LOGI(TAG, "Starting init sequence");
+
+	vTaskDelay(pdMS_TO_TICKS(150));
 	ili9486_send(io, ILI9486_CMD_SWRESET, NULL, 0);
-	vTaskDelay(pdMS_TO_TICKS(120));
+	vTaskDelay(pdMS_TO_TICKS(150));
+	ESP_LOGI(TAG, "Software reset successful");
 
 	ili9486_send(io, ILI9486_CMD_SLPOUT, NULL, 0);
-	vTaskDelay(pdMS_TO_TICKS(20));
+	vTaskDelay(pdMS_TO_TICKS(150));
+	ESP_LOGI(TAG, "Sleep out successful");
+
+	/* Pixel format: 16-bit (RGB565) */
+	ili9486_send(io, ILI9486_CMD_COLMOD, (uint8_t[]){ 0x55 }, 1);
+	ESP_LOGI(TAG, "Set pixel format successful");
 
 	/* Power / gamma registers (trimmed from datasheet defaults) */
-	ili9486_send(io, 0xB0, (uint8_t[]){ 0x00 }, 1); // Interface mode
-	ili9486_send(io, 0xB1, (uint8_t[]){ 0xB0, 0x11 }, 2); // Frame rate ~70 Hz
-	ili9486_send(io, 0xB4, (uint8_t[]){ 0x02 }, 1); // Inversion: 2-dot
-	ili9486_send(io, 0xB6, (uint8_t[]){ 0x02, 0x22 }, 2); // Display function
-	ili9486_send(io, 0xB7, (uint8_t[]){ 0xC6 }, 1); // Entry mode
-	ili9486_send(io, 0xC0, (uint8_t[]){ 0x0D, 0x0D }, 2); // Power control 1
-	ili9486_send(io, 0xC1, (uint8_t[]){ 0x41 }, 1); // Power control 2
-	ili9486_send(io, 0xC5, (uint8_t[]){ 0x00, 0x18 }, 2); // VCOM
+	// ili9486_send(io, 0xB0, (uint8_t[]){ 0x00, 0x00 }, 2); // Interface mode
+	// ESP_LOGI(TAG, "Sent interface mode");
+	// ili9486_send(io, 0xB1, (uint8_t[]){ 0xB0, 0x11 }, 2); // Frame rate ~70 Hz
+	// ESP_LOGI(TAG, "Sent frame rate");
+	// ili9486_send(io, 0xB4, (uint8_t[]){ 0x00, 0x02 }, 2); // Inversion: 2-dot
+	// ESP_LOGI(TAG, "Sent inversion mode");
+	// ili9486_send(io, 0xB6, (uint8_t[]){ 0x02, 0x22 }, 2); // Display function
+	// ESP_LOGI(TAG, "Sent sent display function");
+	// ili9486_send(io, 0xB7, (uint8_t[]){ 0x00, 0xC6 }, 2); // Entry mode
+	// ESP_LOGI(TAG, "Sent entry mode");
+	ili9486_send(io, 0xC0, (uint8_t[]){ 0x0E, 0x0E }, 2); // Power control 1
+	ESP_LOGI(TAG, "Sent power control 1");
+	ili9486_send(io, 0xC1, (uint8_t[]){ 0x41, 0x00 }, 2); // Power control 2
+	ESP_LOGI(TAG, "Sent power control 2");
+	ili9486_send(io, 0xC2, (uint8_t[]){ 0x55 }, 1); // Power control 3
+	ESP_LOGI(TAG, "Sent power control 3");
+	ili9486_send(io, 0xC5, (uint8_t[]){ 0x00, 0x00, 0x00, 0x00 }, 4); // VCOM
+	ESP_LOGI(TAG, "Sent vcom");
+	ESP_LOGI(TAG, "Power initialization successful");
 
-	/* Positive gamma */
+	// Positive gamma
 	ili9486_send(io, 0xE0,
 				 (uint8_t[]){ 0x0F, 0x1F, 0x1C, 0x0C, 0x0F, 0x08, 0x48, 0x98,
 							  0x37, 0x0A, 0x13, 0x04, 0x11, 0x0D, 0x00 },
 				 15);
-	/* Negative gamma */
+	// Negative gamma
 	ili9486_send(io, 0xE1,
 				 (uint8_t[]){ 0x0F, 0x32, 0x2E, 0x0B, 0x0D, 0x05, 0x47, 0x75,
 							  0x37, 0x06, 0x10, 0x03, 0x24, 0x20, 0x00 },
 				 15);
+	vTaskDelay(pdMS_TO_TICKS(120));
+	ESP_LOGI(TAG, "Set gamma successful");
 
-	/* Pixel format: 16-bit (RGB666) */
-	ili9486_send(io, ILI9486_CMD_COLMOD, (uint8_t[]){ 0x66 }, 1);
+	ili9486_send(io, ILI9486_CMD_INVOFF, NULL, 0);
+	ESP_LOGI(TAG, "Inversion off successful");
 
-	//ili9486_send(io, ILI9486_CMD_MADCTL, (uint8_t[]){0x08}, 1);
+	vTaskDelay(pdMS_TO_TICKS(150));
+	ili9486_send(io, ILI9486_CMD_SLPOUT, NULL, 0);
+	vTaskDelay(pdMS_TO_TICKS(150));
+	ESP_LOGI(TAG, "Sleep out successful");
 
-	ili9486_send(io, ILI9486_CMD_DISPON, NULL, 0);
-	vTaskDelay(pdMS_TO_TICKS(20));
+	// MX=1 BGR=1
+	ili9486_send(io, ILI9486_CMD_MADCTL, (uint8_t[]){ 0x48 }, 1);
+
+	ili9486_send(io, ILI9486_CMD_DISON, NULL, 0);
+	vTaskDelay(pdMS_TO_TICKS(150));
+	ESP_LOGI(TAG, "Powered on");
 }
 
 // ── Public constructor ───────────────────────────────────────────────────────
@@ -197,27 +233,25 @@ static esp_err_t panel_ili9486_draw_bitmap(esp_lcd_panel_t *panel, int x_start,
 	y_start += ili->y_gap;
 	y_end += ili->y_gap;
 
-	/* CASET — 8 bytes, each coordinate byte padded with 0x00 */
 	uint8_t caset[] = {
-		0x00, (uint8_t)((x_start >> 8) & 0xFF),
-		0x00, (uint8_t)(x_start & 0xFF),
-		0x00, (uint8_t)(((x_end - 1) >> 8) & 0xFF),
-		0x00, (uint8_t)((x_end - 1) & 0xFF),
+		(x_start >> 8) & 0xFF,
+		x_start & 0xFF,
+		((x_end - 1) >> 8) & 0xFF,
+		(x_end - 1) & 0xFF,
 	};
 
-	/* RASET — 8 bytes, same padding */
-	uint8_t raset[] = {
-		0x00, (uint8_t)((y_start >> 8) & 0xFF),
-		0x00, (uint8_t)(y_start & 0xFF),
-		0x00, (uint8_t)(((y_end - 1) >> 8) & 0xFF),
-		0x00, (uint8_t)((y_end - 1) & 0xFF),
+	uint8_t paset[] = {
+		(y_start >> 8) & 0xFF,
+		y_start & 0xFF,
+		((y_end - 1) >> 8) & 0xFF,
+		(y_end - 1) & 0xFF,
 	};
 
-	esp_lcd_panel_io_tx_param(io, ILI9486_CMD_CASET, NULL, 0);
-	esp_lcd_panel_io_tx_color(io, -1, caset, 8);
+	esp_lcd_panel_io_tx_param(io, ILI9486_CMD_CASET, caset, sizeof(caset));
+	// esp_lcd_panel_io_tx_color(io, -1, caset, 4);
 
-	esp_lcd_panel_io_tx_param(io, ILI9486_CMD_RASET, NULL, 0);
-	esp_lcd_panel_io_tx_color(io, -1, raset, 8);
+	esp_lcd_panel_io_tx_param(io, ILI9486_CMD_PASET, paset, sizeof(paset));
+	// esp_lcd_panel_io_tx_color(io, -1, paset, 4);
 
 	/* Pixel data */
 	size_t pixels = (x_end - x_start) * (y_end - y_start);
@@ -228,10 +262,10 @@ static esp_err_t panel_ili9486_draw_bitmap(esp_lcd_panel_t *panel, int x_start,
 		return ESP_ERR_INVALID_SIZE;
 	}
 
-	rgb565_to_rgb666((const uint16_t *)color_data, s_conv_buf, pixels);
+	// rgb565_to_rgb666((const uint16_t *)color_data, s_conv_buf, pixels);
 
-	esp_lcd_panel_io_tx_param(io, ILI9486_CMD_RAMWR, NULL, 0);
-	return esp_lcd_panel_io_tx_color(io, -1, s_conv_buf, pixels * 3);
+	// esp_lcd_panel_io_tx_param(io, ILI9486_CMD_RAMWR, NULL, 0);
+	return esp_lcd_panel_io_tx_color(io, ILI9486_CMD_RAMWR, s_conv_buf, pixels * 3);
 }
 
 static esp_err_t panel_ili9486_invert_color(esp_lcd_panel_t *panel, bool invert)
@@ -277,6 +311,6 @@ static esp_err_t panel_ili9486_set_gap(esp_lcd_panel_t *panel, int x_gap,
 static esp_err_t panel_ili9486_disp_on_off(esp_lcd_panel_t *panel, bool on)
 {
 	ili9486_panel_t *ili = __containerof(panel, ili9486_panel_t, base);
-	int cmd = on ? ILI9486_CMD_DISPON : 0x28;
+	int cmd = on ? ILI9486_CMD_DISON : 0x28;
 	return esp_lcd_panel_io_tx_param(ili->io, cmd, NULL, 0);
 }
