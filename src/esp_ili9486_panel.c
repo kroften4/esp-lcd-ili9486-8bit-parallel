@@ -46,7 +46,7 @@ typedef struct {
 // TODO: make it more configurable
 #define LCD_H_RES 320
 #define CONV_BUF_PIXELS (LCD_H_RES * 80)
-static uint8_t s_conv_buf[CONV_BUF_PIXELS * 3];
+// static uint8_t s_conv_buf[CONV_BUF_PIXELS * 2];
 
 // 8bit parallel uses rgb565
 // static void rgb565_to_rgb666(const uint16_t *src, uint8_t *dst, size_t pixels)
@@ -265,7 +265,8 @@ static esp_err_t panel_ili9486_draw_bitmap(esp_lcd_panel_t *panel, int x_start,
 	// rgb565_to_rgb666((const uint16_t *)color_data, s_conv_buf, pixels);
 
 	// esp_lcd_panel_io_tx_param(io, ILI9486_CMD_RAMWR, NULL, 0);
-	return esp_lcd_panel_io_tx_color(io, ILI9486_CMD_RAMWR, s_conv_buf, pixels * 3);
+	return esp_lcd_panel_io_tx_color(io, ILI9486_CMD_RAMWR, color_data,
+									 pixels * 2);
 }
 
 static esp_err_t panel_ili9486_invert_color(esp_lcd_panel_t *panel, bool invert)
