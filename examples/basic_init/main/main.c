@@ -17,7 +17,7 @@ static const char* TAG = "main";
 void app_main(void)
 {
     ESP_LOGI(TAG, "ILI9486 basic init example");
-    esp_err_t ret = ili9486_display_init();
+    esp_err_t ret = ili9486_display_init_spi();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Panel init failed: %s", esp_err_to_name(ret));
         return;

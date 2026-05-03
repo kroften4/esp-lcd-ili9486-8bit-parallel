@@ -21,9 +21,9 @@
 static const char *TAG = "ili9486_display_init";
 
 esp_err_t
-displayInit(esp_lcd_panel_handle_t *ret_panel,
-			esp_lcd_panel_io_color_trans_done_cb_t on_color_trans_done,
-			void *on_trans_done_user_ctx)
+ili9486_display_init(esp_lcd_panel_handle_t *ret_panel,
+					 esp_lcd_panel_io_color_trans_done_cb_t on_color_trans_done,
+					 void *on_trans_done_user_ctx)
 {
 	// TODO: wire backlight to gpio and turn on only after init
 	gpio_reset_pin(CONFIG_ILI9486_PIN_RD);
@@ -103,7 +103,7 @@ displayInit(esp_lcd_panel_handle_t *ret_panel,
 
 	esp_lcd_panel_dev_config_t panel_config = {
 		.reset_gpio_num = CONFIG_ILI9486_PIN_RST,
-		// .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
+	// .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
 #if CONFIG_ILI9486_16_BPP
 		.bits_per_pixel = 16,
 #elif CONFIG_ILI9486_18_BPP || CONFIG_ILI9486_18_BPP_SPI

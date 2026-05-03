@@ -6,7 +6,7 @@
 #include <freertos/idf_additions.h>
 
 esp_err_t
-displayInit(esp_lcd_panel_handle_t *ret_panel,
+ili9486_display_init(esp_lcd_panel_handle_t *ret_panel,
 			esp_lcd_panel_io_color_trans_done_cb_t on_color_trans_done,
 			void *on_trans_done_user_ctx);
 

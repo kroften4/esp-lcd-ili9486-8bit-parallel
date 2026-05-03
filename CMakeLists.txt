@@ -1,3 +1,3 @@
-idf_component_register(SRCS "src/esp_ili9486_panel.c"
+idf_component_register(SRC_DIRS "src"
                     INCLUDE_DIRS "include"
                     REQUIRES driver esp_lcd)

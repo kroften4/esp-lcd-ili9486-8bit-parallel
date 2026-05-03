@@ -41,7 +41,7 @@ static esp_lcd_panel_handle_t   s_panel      = NULL;
 
 
 
-esp_err_t ili9486_display_init(void)
+esp_err_t ili9486_display_init_spi(void)
 {
     esp_err_t ret;
 

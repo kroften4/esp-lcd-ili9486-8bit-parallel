@@ -79,7 +79,7 @@ static void draw_pixel(esp_lcd_panel_handle_t panel, int x, int y, uint16_t colo
     
     esp_lcd_panel_handle_t panel = ili9486_display_get_panel();
     if(panel==NULL) {
-        esp_err_t ret=ili9486_display_init();
+        esp_err_t ret=ili9486_display_init_spi();
         TEST_ASSERT_EQUAL(ESP_OK, ret);
         panel = ili9486_display_get_panel();
     }

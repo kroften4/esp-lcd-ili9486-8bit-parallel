@@ -51,7 +51,7 @@ static bool ili9486_color_trans_done_cb(
 
 
 
-esp_err_t ili9486_display_init(void)
+esp_err_t ili9486_display_init_spi(void)
 {
     esp_err_t ret;
 
