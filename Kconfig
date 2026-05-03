@@ -1,59 +1,169 @@
-menu "ILI9486 Panel Driver"
+menu "ILI9486 LCD Display Driver"
 
+config ILI9486_INTERFACE
+    choice
+        prompt "LCD bus interface"
+        default ILI9486_8BIT_PARL
+    config ILI9486_8BIT_PARL
+        bool "8-bit parallel interface"
+    config ILI9486_SPI
+        bool "SPI (Not supported yet)"
+    endchoice
+
+if ILI9486_SPI
+menu "SPI settings"
     config ILI9486_SPI_HOST
         int "SPI Host (0=SPI1, 1=SPI2, 2=SPI3)"
         default 1
         help
             SPI peripheral to use. SPI2=1 (HSPI), SPI3=2 (VSPI).
-
     config ILI9486_PIN_MOSI
         int "MOSI GPIO"
         default 23
-
     config ILI9486_PIN_MISO
         int "MISO GPIO (-1 if unused)"
         default -1
-
     config ILI9486_PIN_CLK
         int "CLK GPIO"
         default 18
+endmenu
+endif
 
-    config ILI9486_PIN_CS
-        int "CS GPIO"
+if ILI9486_8BIT_PARL
+menu "Parallel interface settings"
+    config ILI9486_PIN_RD
+        int "RD GPIO"
+        default 17
+    config ILI9486_PIN_WR
+        int "WR Write (PCLK) GPIO"
+        default 16
+    config ILI9486_WR_ACTIVE_NEG
+        bool "WR Active on falling edge"
+        default n
+        help
+            The display will write data lines when there's a falling edge on
+            WR signal (a.k.a the PCLK)
+
+    config ILI9486_PIN_D0
+        int "D0 GPIO"
         default 5
+    config ILI9486_PIN_D1
+        int "D1 GPIO"
+        default 18
+    config ILI9486_PIN_D2
+        int "D2 GPIO"
+        default 13
+    config ILI9486_PIN_D3
+        int "D3 GPIO"
+        default 12
+    config ILI9486_PIN_D4
+        int "D4 GPIO"
+        default 14
+    config ILI9486_PIN_D5
+        int "D5 GPIO"
+        default 27
+    config ILI9486_PIN_D6
+        int "D6 GPIO"
+        default 26
+    config ILI9486_PIN_D7
+        int "D7 GPIO"
+        default 25
+endmenu
+endif
+
+menu "General pins"
+    config ILI9486_PIN_CS
+        int "CS Chip Select GPIO"
+        default 5 if ILI9486_SPI
+        default 2 if ILI9486_8BIT_PARL
+
+    config ILI9486_CS_ACTIVE_HIGH
+        bool "CS active high"
+        default n
 
     config ILI9486_PIN_DC
-        int "DC GPIO"
-        default 21
+        int "DC Data/Command (RS) GPIO"
+        default 21 if ILI9486_SPI
+        default 2 if ILI9486_8BIT_PARL
+
+    config ILI9486_DC_DATA_ACTIVE_HIGH
+        bool "DC HIGH = data selected"
+        default y
 
     config ILI9486_PIN_RST
-        int "RST GPIO"
-        default 22
+        int "RST Reset GPIO"
+        default 22 if ILI9486_SPI
+        default 15 if ILI9486_8BIT_PARL
 
     config ILI9486_PIN_BL
-        int "Backlight GPIO"
+        int "BL Backlight GPIO"
         default 4
 
     config ILI9486_BL_ACTIVE_HIGH
-        bool "Backlight active high"
+        bool "BL Backlight active high"
         default y
         help
             If your module's backlight turns on with GPIO high, enable this.
             Disable if active low.
+endmenu
 
-    config ILI9486_PIXEL_CLK_HZ
-        int "SPI pixel clock Hz"
-        default 5000000
+menu "DMA"
+    config ILI9486_MAX_TRANSFER_BYTES
+        int "DMA transaction size limit"
+        default 48000
+    config ILI9486_DMA_BURST_SIZE
+        int "DMA burst size (bytes)"
+        default 16384
+    config ILI9486_TRANS_QUEUE_DEPTH
+        int "DMA transaction queue size"
+        default 10
         help
-            5000000 (5MHz) is safe for most modules.
-            Some can do 10-20MHz but verify with a logic analyser.
+            Larger queue, higher throughput
+endmenu
 
-    config ILI9486_H_RES
-        int "Horizontal resolution"
-        default 320
+menu "Colors"
+    if ILI9486_SPI
+        choice
+            prompt "Bits per pixel"
+            default ILI9486_18_BPP
+        config ILI9486_3_BPP
+            bool "RGB111 3 Bits per pixel"
+        config ILI9486_18_BPP_SPI
+            bool "RGB666 18 Bits per pixel"
+        endchoice
+    endif
 
-    config ILI9486_V_RES
-        int "Vertical resolution"
-        default 480
+    if ILI9486_8BIT_PARL
+        choice
+            prompt "Bits per pixel"
+            default ILI9486_16_BPP
+        config ILI9486_16_BPP
+            bool "RGB565 16 Bits per pixel"
+        config ILI9486_18_BPP
+            bool "RGB666 18 Bits per pixel"
+        endchoice
+    endif
+
+    config ILI9486_REVERSE_COLOR_BITS
+        bool "Reverse color bits"
+        default n
+    config ILI9486_SWAP_COLOR_BYTES
+        bool "Swap color bytes"
+        default y
+endmenu
+
+config ILI9486_CLOCK_HZ
+    int "Clock frequency (Hz)"
+    default 5000000
+    help
+        5MHz is fine for most boards. Experiment with 10-20 MHz
+
+config ILI9486_H_RES
+    int "Horizontal resolution"
+    default 480
+
+config ILI9486_V_RES
+    int "Vertical resolution"
+    default 320
 
 endmenu
