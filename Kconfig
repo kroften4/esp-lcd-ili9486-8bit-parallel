@@ -84,7 +84,7 @@ menu "General pins"
     config ILI9486_PIN_DC
         int "DC Data/Command (RS) GPIO"
         default 21 if ILI9486_SPI
-        default 2 if ILI9486_8BIT_PARL
+        default 4 if ILI9486_8BIT_PARL
 
     config ILI9486_DC_DATA_ACTIVE_HIGH
         bool "DC HIGH = data selected"

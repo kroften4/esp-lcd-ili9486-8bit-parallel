@@ -87,41 +87,41 @@ static esp_err_t ili9486_send(esp_lcd_panel_io_handle_t io, uint8_t cmd,
 // ── Init sequence ────────────────────────────────────────────────────────────
 static void ili9486_send_init_sequence(esp_lcd_panel_io_handle_t io)
 {
-	ESP_LOGI(TAG, "Starting init sequence");
+	ESP_LOGD(TAG, "Starting init sequence");
 
 	vTaskDelay(pdMS_TO_TICKS(150));
 	ili9486_send(io, ILI9486_CMD_SWRESET, NULL, 0);
 	vTaskDelay(pdMS_TO_TICKS(150));
-	ESP_LOGI(TAG, "Software reset successful");
+	ESP_LOGD(TAG, "Software reset successful");
 
 	ili9486_send(io, ILI9486_CMD_SLPOUT, NULL, 0);
 	vTaskDelay(pdMS_TO_TICKS(150));
-	ESP_LOGI(TAG, "Sleep out successful");
+	ESP_LOGD(TAG, "Sleep out successful");
 
 	/* Pixel format: 16-bit (RGB565) */
 	ili9486_send(io, ILI9486_CMD_COLMOD, (uint8_t[]){ 0x55 }, 1);
-	ESP_LOGI(TAG, "Set pixel format successful");
+	ESP_LOGD(TAG, "Set pixel format successful");
 
 	/* Power / gamma registers (trimmed from datasheet defaults) */
 	// ili9486_send(io, 0xB0, (uint8_t[]){ 0x00, 0x00 }, 2); // Interface mode
-	// ESP_LOGI(TAG, "Sent interface mode");
+	// ESP_LOGD(TAG, "Sent interface mode");
 	// ili9486_send(io, 0xB1, (uint8_t[]){ 0xB0, 0x11 }, 2); // Frame rate ~70 Hz
-	// ESP_LOGI(TAG, "Sent frame rate");
+	// ESP_LOGD(TAG, "Sent frame rate");
 	// ili9486_send(io, 0xB4, (uint8_t[]){ 0x00, 0x02 }, 2); // Inversion: 2-dot
-	// ESP_LOGI(TAG, "Sent inversion mode");
+	// ESP_LOGD(TAG, "Sent inversion mode");
 	// ili9486_send(io, 0xB6, (uint8_t[]){ 0x02, 0x22 }, 2); // Display function
-	// ESP_LOGI(TAG, "Sent sent display function");
+	// ESP_LOGD(TAG, "Sent sent display function");
 	// ili9486_send(io, 0xB7, (uint8_t[]){ 0x00, 0xC6 }, 2); // Entry mode
-	// ESP_LOGI(TAG, "Sent entry mode");
+	// ESP_LOGD(TAG, "Sent entry mode");
 	ili9486_send(io, 0xC0, (uint8_t[]){ 0x0E, 0x0E }, 2); // Power control 1
-	ESP_LOGI(TAG, "Sent power control 1");
+	ESP_LOGD(TAG, "Sent power control 1");
 	ili9486_send(io, 0xC1, (uint8_t[]){ 0x41, 0x00 }, 2); // Power control 2
-	ESP_LOGI(TAG, "Sent power control 2");
+	ESP_LOGD(TAG, "Sent power control 2");
 	ili9486_send(io, 0xC2, (uint8_t[]){ 0x55 }, 1); // Power control 3
-	ESP_LOGI(TAG, "Sent power control 3");
+	ESP_LOGD(TAG, "Sent power control 3");
 	ili9486_send(io, 0xC5, (uint8_t[]){ 0x00, 0x00, 0x00, 0x00 }, 4); // VCOM
-	ESP_LOGI(TAG, "Sent vcom");
-	ESP_LOGI(TAG, "Power initialization successful");
+	ESP_LOGD(TAG, "Sent vcom");
+	ESP_LOGD(TAG, "Power initialization successful");
 
 	// Positive gamma
 	ili9486_send(io, 0xE0,
@@ -134,22 +134,22 @@ static void ili9486_send_init_sequence(esp_lcd_panel_io_handle_t io)
 							  0x37, 0x06, 0x10, 0x03, 0x24, 0x20, 0x00 },
 				 15);
 	vTaskDelay(pdMS_TO_TICKS(120));
-	ESP_LOGI(TAG, "Set gamma successful");
+	ESP_LOGD(TAG, "Set gamma successful");
 
 	ili9486_send(io, ILI9486_CMD_INVOFF, NULL, 0);
-	ESP_LOGI(TAG, "Inversion off successful");
+	ESP_LOGD(TAG, "Inversion off successful");
 
 	vTaskDelay(pdMS_TO_TICKS(150));
 	ili9486_send(io, ILI9486_CMD_SLPOUT, NULL, 0);
 	vTaskDelay(pdMS_TO_TICKS(150));
-	ESP_LOGI(TAG, "Sleep out successful");
+	ESP_LOGD(TAG, "Sleep out successful");
 
 	// MX=1 BGR=1
 	ili9486_send(io, ILI9486_CMD_MADCTL, (uint8_t[]){ 0x48 }, 1);
 
 	ili9486_send(io, ILI9486_CMD_DISON, NULL, 0);
 	vTaskDelay(pdMS_TO_TICKS(150));
-	ESP_LOGI(TAG, "Powered on");
+	ESP_LOGD(TAG, "Powered on");
 }
 
 // ── Public constructor ───────────────────────────────────────────────────────
@@ -287,7 +287,7 @@ static esp_err_t panel_ili9486_mirror(esp_lcd_panel_t *panel, bool mx, bool my)
 		ili->madctl |= 0x80;
 	else
 		ili->madctl &= ~0x80;
-	//ESP_LOGI(TAG, "mirror called mx=%d my=%d madctl=0x%02X", mx, my, ili->madctl);
+	ESP_LOGD(TAG, "mirror called mx=%d my=%d madctl=0x%02X", mx, my, ili->madctl);
 	return ili9486_send(ili->io, ILI9486_CMD_MADCTL, &ili->madctl, 1);
 }
 static esp_err_t panel_ili9486_swap_xy(esp_lcd_panel_t *panel, bool swap)
